@@ -129,7 +129,15 @@ while True:
         prompt.set(start_prompt)
 
     if choice == "c":
+        # Second half of the context, starting from ">"
+        pt = start_prompt
+        ptl = len(pt)
+        cutoff = ptl // 2 + pt[ptl // 2].find(">")
+        part_second = pt[cutoff:]
+        part_first = pt[:cutoff]
+
         print("(SUMMARY)\n")
-        print(mytho_compress(prompt.get()))
+        compressed = mytho_compress(part_first)
+        prompt.set(compressed + part_second)
+        print(prompt.get())
         print("-----\n")
-        prompt.set(start_prompt)
