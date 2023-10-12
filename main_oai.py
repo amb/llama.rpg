@@ -21,6 +21,7 @@ llm_story = ChatPromptTemplate.from_messages([
 You are writing a thrilling text adventure game set in a sci-fi universe.
 You are a dungeon master that leads the players through the story step by step.
 Give detailed descriptions of the current environment and situation. Don't leave things vague.
+Don't write about how player feels about things.
 Use at most three paragraphs.
 """),
     ("human", "{text}")]) | ChatOpenAI(model_kwargs={"stop": [">"]})
@@ -35,6 +36,12 @@ Make the option unique and interesting.
 Don't use word "you" in the option, instead use a command style like for example "go north".
 """),
     ("human", "{text}")]) | ChatOpenAI(model_kwargs={"stop": ["\n"]})
+
+
+llm_compress = ChatPromptTemplate.from_messages([
+    ("system", """Summarize the text in a few paragraphs. Keep all the relevant items, locations and actors."""),
+    ("human", "{text}")
+]) | ChatOpenAI()
 
 # fmt: on
 
@@ -90,24 +97,6 @@ def gen_options(prompt):
     return options
 
 
-# def mytho_compress(text):
-#     for _ in range(5):
-#         compress = (
-#             f"### Instruction:\nSummarize the following story in a few paragraphs.\n"
-#             f"{text}"
-#             f"\n### Response:\nCertainly. Here's the summary of the story in a few paragraphs:\n\nYou"
-#         )
-
-#         result = "You" + llm(compress)
-#         rlen = llm.get_num_tokens(result)
-
-#         # Repeat until something hopefully sensible is generated
-#         if rlen > 5:
-#             break
-
-#     return result
-
-
 previous_choices = []
 checkpoint = 0
 # prompt = PromptManager(header + start_text)
@@ -143,16 +132,21 @@ while True:
         print("(REGEN)\n")
         prompt.set(start_prompt)
 
-    # if choice == "c":
-    #     # Second half of the context, starting from ">"
-    #     pt = start_prompt
-    #     ptl = len(pt)
-    #     cutoff = ptl // 2 + pt[ptl // 2].find(">")
-    #     part_second = pt[cutoff:]
-    #     part_first = pt[:cutoff]
+    if choice == "c":
+        # calculate number of ">" in the prompt
+        print("(COMPRESS)\n")
+        print(llm_compress.invoke({"text": start_prompt}).content)
+        prompt.set(start_prompt)
+        # if prompt.get().count(">") > 2:
+        #     # Second half of the context, starting from ">"
+        #     pt = start_prompt
+        #     ptl = len(pt)
+        #     cutoff = ptl // 2 + pt[ptl // 2].find(">")
+        #     part_second = pt[cutoff:]
+        #     part_first = pt[:cutoff]
 
-    #     print("(SUMMARY)\n")
-    #     compressed = mytho_compress(part_first)
-    #     prompt.set(compressed + part_second)
-    #     print(prompt.get())
-    #     print("-----\n")
+        #     print("(SUMMARY)\n")
+        #     compressed = llm_compress.invoke({"text": part_first}).content.strip()
+        #     prompt.set(compressed + part_second)
+        #     print(prompt.get())
+        #     print("-----\n")
