@@ -8,43 +8,33 @@ from langchain.chains import LLMChain
 
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
-from langchain.prompts import PromptTemplate
+from langchain.prompts import PromptTemplate, ChatPromptTemplate
 
 from getch import getch
 
 # one_line = LlamaGrammar.from_string('root ::= [a-zA-Z\'",.;:!? ]+ "\n"', verbose=False)
 
-start_text = """
-You wake up in a dimly lit room.
-The soft, ambient hum of machinery fills the air. Mysterious symbols on a nearby control panel catch your attention.
-As you collect your thoughts, your hand brushes against a cold, metallic device in your pocket—it emits a faint, pulsating light.
-Your journey into the unknown begins.
+# fmt: off
 
-> Look around
-
-"""
-
-llm_story = PromptTemplate.from_template("""
-The following is a thrilling text adventure game set in a sci-fi universe.
-The game begins after the <BEGIN> tag.
+llm_story = ChatPromptTemplate.from_messages([
+    ("system", """
+You are writing a thrilling text adventure game set in a sci-fi universe.
 You are a dungeon master that leads the players through the story step by step.
 Give detailed descriptions of the current environment and situation. Don't leave things vague.
-Player input happens after the ">" symbol.
+"""),
+    ("human", "{text}")]) | ChatOpenAI(model_kwargs={"stop": [">"]})
 
-<BEGIN>
-{story}
-""") | ChatOpenAI(model_kwargs={"stop": [">"]})
 
-llm_options = PromptTemplate.from_template("""
-The text starting after <BEGIN> tag, is a thrilling text adventure game set in a sci-fi universe.
+llm_options = ChatPromptTemplate.from_messages([
+    ("system", """
+You are writing a thrilling text adventure game set in a sci-fi universe.
 You are a dungeon master that leads the players through the story step by step.
-Player input happens after the ">" symbol.
-Give the player four numbered options on what to do next.
+Add a list of four numbered options on what to do next at the end.
 Make each option unique and interesting.
+"""),
+    ("human", "{text}")]) | ChatOpenAI()
 
-<BEGIN>
-{story}
-""") | ChatOpenAI()
+# fmt: on
 
 # llm = ChatOpenAI(model_name="gpt-3.5-turbo", max_tokens=200)
 
@@ -72,7 +62,7 @@ class PromptManager:
 
 def gen_options(prompt):
     print("(gen_options)")
-    prompt.add(llm_options.invoke({"story": prompt.get()}).content.strip())
+    prompt.add(llm_options.invoke({"text": prompt.get()}).content.strip())
     omap = {}
     for line in prompt.get().split("\n")[-7:]:
         if len(line) > 5 and line[0] in "1234":
@@ -108,11 +98,11 @@ previous_choices = []
 checkpoint = 0
 # prompt = PromptManager(header + start_text)
 prompt = PromptManager("")
-print(prompt, end="")
 while True:
     start_prompt = prompt.get()
+    print(start_prompt)
     print("(gen story)")
-    prompt.add(llm_story.invoke({"story": (start_prompt) + "\n"}).content.strip())
+    prompt.add(llm_story.invoke({"text": start_prompt}).content.strip())
 
     # checkpoint = prompt.get()
     # options = gen_options(prompt)
