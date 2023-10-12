@@ -21,18 +21,20 @@ llm_story = ChatPromptTemplate.from_messages([
 You are writing a thrilling text adventure game set in a sci-fi universe.
 You are a dungeon master that leads the players through the story step by step.
 Give detailed descriptions of the current environment and situation. Don't leave things vague.
+Use at most three paragraphs.
 """),
     ("human", "{text}")]) | ChatOpenAI(model_kwargs={"stop": [">"]})
 
 
 llm_options = ChatPromptTemplate.from_messages([
     ("system", """
-You are writing a thrilling text adventure game set in a sci-fi universe.
-You are a dungeon master that leads the players through the story step by step.
-Add a list of four numbered options on what to do next at the end.
-Make each option unique and interesting.
+This is a text adventure game set in a sci-fi universe.
+Add a player action option on what to do next at the end of text.
+Use at most three sentences.
+Make the option unique and interesting.
+Don't use word "you" in the option, instead use a command style like for example "go north".
 """),
-    ("human", "{text}")]) | ChatOpenAI()
+    ("human", "{text}")]) | ChatOpenAI(model_kwargs={"stop": ["\n"]})
 
 # fmt: on
 
@@ -61,18 +63,30 @@ class PromptManager:
 
 
 def gen_options(prompt):
+    assert len(prompt.get()) > 10, "Prompt length too short."
+    prompt.add("\n\n")
     print("(gen_options)")
-    prompt.add(llm_options.invoke({"text": prompt.get()}).content.strip())
+    for n in range(4):
+        result = ""
+        prompt.add(f"{n+1}. ")
+        for _ in range(5):
+            result = llm_options.invoke({"text": prompt.get()}).content.strip()
+            if len(result) > 5:
+                break
+        prompt.add(result + "\n")
+    # print(prompt.get().split("\n")[-10:])
     omap = {}
-    for line in prompt.get().split("\n")[-7:]:
+    for line in prompt.get().split("\n")[-10:]:
         if len(line) > 5 and line[0] in "1234":
             omap[line[0]] = line[3:]
     options = []
+    # print(len(omap))
     for i in range(1, 5):
         if str(i) in omap:
             options.append(omap[str(i)])
     assert len(options) > 1
-    print(options)
+    # print(options)
+    # print(len(options))
     return options
 
 
@@ -100,13 +114,12 @@ checkpoint = 0
 prompt = PromptManager("")
 while True:
     start_prompt = prompt.get()
-    print(start_prompt)
     print("(gen story)")
     prompt.add(llm_story.invoke({"text": start_prompt}).content.strip())
 
-    # checkpoint = prompt.get()
-    # options = gen_options(prompt)
-    # prompt.set(checkpoint)
+    checkpoint = prompt.get()
+    options = gen_options(prompt)
+    prompt.set(checkpoint)
 
     print(f"\n> ", end="")
     prompt.text += "\n\n> "
@@ -123,8 +136,8 @@ while True:
     if choice == "5":
         prompt.add(input("5. ") + "\n\n")
 
-    # if choice in "4321":
-    #     prompt.add(options[int(choice) - 1] + "\n\n")
+    if choice in "4321":
+        prompt.add(options[int(choice) - 1] + "\n\n")
 
     if choice == "9":
         print("(REGEN)\n")
